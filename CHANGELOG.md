@@ -7,3 +7,9 @@ Versions are managed automatically by [release-plz](https://release-plz.dev/)
 from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
+
+## [0.1.0](https://github.com/ForeverAngry/rig-memory-policy/releases/tag/v0.1.0) - 2026-05-29
+
+### Added
+
+- Initial rig-memory-policy 0.1.0 scaffold
