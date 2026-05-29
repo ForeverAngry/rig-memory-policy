@@ -25,6 +25,11 @@ in the adapter that consumes them, not here.
 - **`inmem`** — deterministic no-disk lexical reference store (`Episode`,
   `InMemoryStore`, `InMemoryHit`) for tests, examples, offline modes, and
   backend-neutral fixtures ([src/inmem.rs](src/inmem.rs)).
+- **`scope`** — normalized exact and hierarchical scope helpers for backend
+  isolation and provenance projection ([src/scope.rs](src/scope.rs)).
+- **`retention`** — deterministic keep/drop/defer decisions over decoded
+  frame metadata plus backend-provided sequence numbers, timestamps, and
+  retention labels ([src/retention.rs](src/retention.rs)).
 - **`error::PolicyError`** — neutral error type shared by the helpers
   above ([src/error.rs](src/error.rs)).
 - **`rig-memvid` adapter integration** — `rig-memvid` re-exports the
@@ -36,12 +41,10 @@ in the adapter that consumes them, not here.
 These are *candidate* items only. None will land until a concrete adapter
 needs the surface; speculative additions are explicitly out of scope.
 
-1. **Backend-neutral retention / scope projection helpers** — formalize
-   the patterns that adapters currently re-invent for "keep last N
-   turns", "scope by conversation", and "TTL on metadata frames" so the
-   logic lives in one place. *Triggered by:* a second backend adapter
-   (SQLite, LanceDB, Qdrant, or filesystem) reaching parity with the
-   `rig-memvid` adapter.
+1. **`rig-memvid` integration proof** — map the adapter's existing
+  `MemoryConfig.scope`, context-projection `scope_path()` helper, and
+  retention provenance keys onto the new `scope` / `retention` modules.
+  Keep this in `rig-memvid`; the policy crate remains storage-neutral.
 2. **Encryption-policy hook surface** — a backend-neutral trait that
    adapters with encryption support (e.g. `memvid-core`'s encrypted
    archives) can implement, so policy code can decide *when* to encrypt
@@ -54,8 +57,9 @@ needs the surface; speculative additions are explicitly out of scope.
    backends behind a feature flag at runtime.
 4. **Frame-kind extensions** — additional `FrameKind` variants as new
    memory lifecycles appear in adapter code (e.g. `Reflection`,
-   `ToolObservation`). Each variant is additive and backwards-compatible
-   under `#[non_exhaustive]`.
+  `ToolObservation`). `FrameKind` is intentionally exhaustive in `0.2.x`,
+  so adding variants is a breaking change and must wait for a major-version
+  release plan.
 
 ## Out of scope
 

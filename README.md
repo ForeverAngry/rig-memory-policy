@@ -29,6 +29,12 @@ engine. Adapters wrap these primitives in their own backend-specific code.
   — deterministic no-disk lexical reference store (`Episode`,
   `InMemoryStore`, `InMemoryHit`) for tests, examples, offline modes, and
   backend-neutral fixtures.
+- [`scope`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/scope/index.html)
+  — normalized exact and hierarchical scope matching helpers for backend
+  isolation, tenant boundaries, and provenance projection.
+- [`retention`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/retention/index.html)
+  — deterministic keep/drop/defer decisions over decoded frame metadata plus
+  backend-provided sequence numbers, timestamps, and retention labels.
 - [`error::PolicyError`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/error/enum.PolicyError.html)
   — neutral error type shared by the helpers above.
 
@@ -73,6 +79,44 @@ Existing `rig-memvid` callers can continue using `rig_memvid::inmem::*` and
 the top-level `rig_memvid::{Episode, InMemoryStore, InMemoryHit}` re-exports;
 those are compatibility shims over this crate.
 
+## Retention and scope policies
+
+Backends can evaluate retention decisions without adopting a shared storage
+trait. Decode a frame's `FrameMetadata`, attach any backend-local facts (such
+as sequence numbers or write timestamps), and run it through a pure
+`RetentionPolicy` before compaction, deletion, or archival.
+
+```rust
+use rig_memory_policy::{
+  FrameKind, FrameMetadata, RetentionCandidate, RetentionDecision,
+  RetentionPolicy, Scope,
+};
+
+let metadata = FrameMetadata {
+  schema_version: 1,
+  kind: FrameKind::CompactionSummary,
+  conversation_id: "conv-1".into(),
+  chat_role: "assistant".into(),
+  dedup_key: "abc".into(),
+  scope: Some("tenant-a/project-1".into()),
+};
+
+let policy = RetentionPolicy::new()
+  .keep_summaries()
+  .drop_outside_scope(Some(Scope::new("tenant-a/project-1")))
+  .drop_written_before(1_700_000_000_000)
+  .default_decision(RetentionDecision::Drop);
+
+let decision = policy.evaluate(
+  RetentionCandidate::new(&metadata).with_written_at_unix_ms(1_600_000_000_000),
+);
+assert_eq!(decision, RetentionDecision::Keep);
+```
+
+The policy helpers intentionally use primitive caller-supplied timestamps and
+string-backed labels. That keeps the crate runtime-agnostic and avoids baking
+one backend's storage model into the shared contract.
+
 ## Status
 
 - Crate version: `0.2.1`.
@@ -84,8 +128,8 @@ those are compatibility shims over this crate.
 - Scope stance: backend-neutral. The crate must not depend on
   `memvid-core`, `rig-compose`, `rig-resources`, `rig-mcp`, `rig-memvid`,
   or `rig-retrieval-evals` so every memory-store backend can consume it.
-- Stability: the public surface listed above is considered stable for
-  `0.2.x`. New backend-neutral capabilities will land as additive
+- Stability: the Phase 1 public surface listed above is considered stable for
+  `0.2.x`. New backend-neutral capabilities land as additive
   modules; breaking changes go through a minor-version bump and are
   flagged in [CHANGELOG.md](CHANGELOG.md).
 
