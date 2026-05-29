@@ -8,6 +8,10 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- Document the stable policy surface and adapter/re-export pattern.
+
 ## [0.2.0](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.1.1...v0.2.0) - 2026-05-29
 
 ### Added
