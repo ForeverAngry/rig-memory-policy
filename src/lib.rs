@@ -11,6 +11,10 @@
 //!   reason about the lifecycle that produced each entry.
 //! - [`inmem`] — a deterministic no-disk reference store for tests,
 //!   examples, and offline modes.
+//! - [`scope`] — normalized exact and hierarchical scope matching helpers for
+//!   backend isolation and provenance projection.
+//! - [`retention`] — deterministic keep/drop/defer policy evaluation over
+//!   backend-provided frame metadata and optional timestamps/sequence numbers.
 //! - [`store`] — the minimal [`TextWriter`] + [`Committable`] capability
 //!   traits backends impl so hooks and compactors can be generic over the
 //!   storage engine.
@@ -30,8 +34,13 @@ pub mod dedup;
 pub mod error;
 pub mod inmem;
 pub mod metadata;
+pub mod retention;
+pub mod scope;
 pub mod store;
 
 pub use error::PolicyError;
 pub use inmem::{Episode, InMemoryHit, InMemoryStore};
+pub use metadata::{FrameKind, FrameMetadata};
+pub use retention::{RetentionCandidate, RetentionDecision, RetentionPolicy, RetentionRule};
+pub use scope::{Scope, normalize_scope, scope_matches, scope_path};
 pub use store::{Committable, TextWriter};
