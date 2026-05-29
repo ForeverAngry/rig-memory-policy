@@ -2,13 +2,15 @@
 //! adapters (`rig-memvid` and future backends like SQLite, LanceDB, Qdrant,
 //! plain filesystem, etc.).
 //!
-//! Phase 1 surface (pure helpers, no trait design yet):
+//! Public surface:
 //!
 //! - [`dedup`] — in-process content-hash dedup for hooks/compactors that must
 //!   satisfy `rig::memory::{DemotionHook, Compactor}`'s idempotency contract.
 //! - [`metadata`] — typed envelope written into a backend's per-entry
 //!   metadata so downstream tools (evals, inspectors, RAG pipelines) can
 //!   reason about the lifecycle that produced each entry.
+//! - [`inmem`] — a deterministic no-disk reference store for tests,
+//!   examples, and offline modes.
 //! - [`store`] — the minimal [`TextWriter`] + [`Committable`] capability
 //!   traits backends impl so hooks and compactors can be generic over the
 //!   storage engine.
@@ -26,8 +28,10 @@
 
 pub mod dedup;
 pub mod error;
+pub mod inmem;
 pub mod metadata;
 pub mod store;
 
 pub use error::PolicyError;
+pub use inmem::{Episode, InMemoryHit, InMemoryStore};
 pub use store::{Committable, TextWriter};

@@ -9,6 +9,10 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PolicyError {
+    /// Direct lookup against an unknown entry key.
+    #[error("entry not found: {0}")]
+    NotFound(String),
+
     /// An internal lock was poisoned by a previous panic. The affected
     /// instance should be discarded.
     #[error("internal lock poisoned")]
