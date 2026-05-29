@@ -8,6 +8,12 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.1.1...v0.2.0) - 2026-05-29
+
+### Added
+
+- *(inmem)* Add in-memory reference store
+
 ## [0.1.1](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.1.0...v0.1.1) - 2026-05-29
 
 ### Added
