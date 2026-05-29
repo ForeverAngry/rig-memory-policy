@@ -8,6 +8,16 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.2.1...v0.2.2) - 2026-05-29
+
+### Added
+
+- Add retention and scope policy helpers
+
+### Documentation
+
+- Add ROADMAP and README Status section
+
 ## [0.2.1](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.2.0...v0.2.1) - 2026-05-29
 
 ### Documentation
