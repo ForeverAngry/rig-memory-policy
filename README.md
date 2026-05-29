@@ -73,6 +73,25 @@ Existing `rig-memvid` callers can continue using `rig_memvid::inmem::*` and
 the top-level `rig_memvid::{Episode, InMemoryStore, InMemoryHit}` re-exports;
 those are compatibility shims over this crate.
 
+## Status
+
+- Crate version: `0.2.1`.
+- Rust edition: 2024.
+- MSRV: 1.89.
+- Runtime stance: runtime-agnostic library. The only runtime dependencies
+  are pure-Rust utility crates (`blake3`, `serde`, `serde_json`,
+  `thiserror`, `tracing`); `tokio` is not in `[dependencies]`.
+- Scope stance: backend-neutral. The crate must not depend on
+  `memvid-core`, `rig-compose`, `rig-resources`, `rig-mcp`, `rig-memvid`,
+  or `rig-retrieval-evals` so every memory-store backend can consume it.
+- Stability: the public surface listed above is considered stable for
+  `0.2.x`. New backend-neutral capabilities will land as additive
+  modules; breaking changes go through a minor-version bump and are
+  flagged in [CHANGELOG.md](CHANGELOG.md).
+
+See [ROADMAP.md](ROADMAP.md) for the published Phase 1 surface and
+Phase 2 candidates.
+
 ## License
 
 MIT
