@@ -7,3 +7,9 @@ Versions are managed automatically by [release-plz](https://release-plz.dev/)
 from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
+
+## [0.1.1](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.1.0...v0.1.1) - 2026-05-29
+
+### Added
+
+- *(store)* Add TextWriter + Committable capability traits
