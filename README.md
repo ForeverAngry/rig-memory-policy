@@ -11,7 +11,7 @@ and future SQLite / LanceDB / Qdrant / filesystem backends).
 This crate has **no** dependency on `memvid-core` or any specific storage
 engine. Adapters wrap these primitives in their own backend-specific code.
 
-## Phase 1 surface
+## Public surface
 
 - [`dedup`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/dedup/index.html)
   — in-process content-hash dedup for hooks/compactors that must satisfy
@@ -21,13 +21,57 @@ engine. Adapters wrap these primitives in their own backend-specific code.
   — typed envelope (`FrameMetadata` + `FrameKind`) written into a backend's
   per-entry metadata map so downstream tools (evals, memory inspectors, RAG
   pipelines) can reason about the lifecycle that produced each entry.
+- [`store`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/store/index.html)
+  — small capability traits (`TextWriter` + `Committable`) for hooks,
+  compactors, and adapters that need to write text and explicitly flush it
+  without depending on a concrete storage backend.
+- [`inmem`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/inmem/index.html)
+  — deterministic no-disk lexical reference store (`Episode`,
+  `InMemoryStore`, `InMemoryHit`) for tests, examples, offline modes, and
+  backend-neutral fixtures.
 - [`error::PolicyError`](https://docs.rs/rig-memory-policy/latest/rig_memory_policy/error/enum.PolicyError.html)
-  — neutral error type for the helpers above.
+  — neutral error type shared by the helpers above.
 
-Trait surface (`MemoryStore`, capability sub-traits, generic
-`PersistHook`/`DemotionHook`/`StoringCompactor`) lands in subsequent phases —
-see the tracking issue in
-[`rig-memvid#28`](https://github.com/ForeverAngry/rig-memvid/issues/28).
+## Adapter pattern
+
+Backend crates keep ownership of their storage-specific APIs while leaning on
+these shared primitives for policy-level behaviour. For example,
+[`rig-memvid`](https://crates.io/crates/rig-memvid) wraps Memvid's `.mv2`
+archive format, but re-exports this crate's dedup, metadata, in-memory, and
+text-write capability surfaces to preserve its historic public paths.
+
+New backend-neutral code should prefer importing directly from
+`rig-memory-policy`:
+
+```rust,no_run
+use rig_memory_policy::{Episode, InMemoryStore};
+
+#[derive(Clone)]
+struct Finding {
+    summary: String,
+}
+
+impl Episode for Finding {
+    fn summary(&self) -> &str {
+        &self.summary
+    }
+}
+
+# async fn run() -> Result<(), rig_memory_policy::PolicyError> {
+let store = InMemoryStore::<Finding>::new();
+store
+    .append(Finding {
+        summary: "scheduled maintenance".into(),
+    })
+    .await?;
+let hits = store.retrieve_similar("maintenance", 5).await?;
+assert_eq!(hits.len(), 1);
+# Ok(()) }
+```
+
+Existing `rig-memvid` callers can continue using `rig_memvid::inmem::*` and
+the top-level `rig_memvid::{Episode, InMemoryStore, InMemoryHit}` re-exports;
+those are compatibility shims over this crate.
 
 ## License
 
