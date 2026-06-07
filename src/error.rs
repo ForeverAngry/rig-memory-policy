@@ -13,6 +13,10 @@ pub enum PolicyError {
     #[error("entry not found: {0}")]
     NotFound(String),
 
+    /// A metadata envelope could not be decoded.
+    #[error("metadata decode failed: {0}")]
+    InvalidMetadata(String),
+
     /// An internal lock was poisoned by a previous panic. The affected
     /// instance should be discarded.
     #[error("internal lock poisoned")]

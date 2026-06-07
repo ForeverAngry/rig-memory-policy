@@ -187,6 +187,107 @@ fn nibble(b: u8) -> Option<u8> {
     }
 }
 
+/// Near-duplicate detection via SimHash.
+///
+/// Exact content hashing (the rest of this module) only catches verbatim
+/// repeats. Agent memory frequently accumulates *paraphrases* — the same fact
+/// restated with different whitespace, punctuation, or word order. [`SimHash`]
+/// maps a text to a 64-bit fingerprint whose Hamming distance approximates
+/// token-set dissimilarity, so backends can gate near-duplicates without an
+/// embedder or model.
+///
+/// This is opt-in via the `near-dedup` feature to honour the crate's
+/// dependency-light, deterministic stance; the algorithm itself adds no
+/// dependencies and reuses [`blake3`] for per-token hashing.
+///
+/// # Example
+///
+/// ```
+/// # #[cfg(feature = "near-dedup")] {
+/// use rig_memory_policy::dedup::SimHash;
+///
+/// let a = SimHash::from_text("the scheduled maintenance window is tonight");
+/// let b = SimHash::from_text("the maintenance window is scheduled tonight");
+/// // Reordered words stay within a small Hamming distance.
+/// assert!(a.hamming_distance(&b) <= 8);
+/// # }
+/// ```
+#[cfg(feature = "near-dedup")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SimHash(u64);
+
+#[cfg(feature = "near-dedup")]
+impl SimHash {
+    /// Compute the SimHash fingerprint of `text`.
+    ///
+    /// Tokens are whitespace-delimited, lowercased, and trimmed of leading and
+    /// trailing non-alphanumeric characters (matching the normalization used
+    /// by the in-memory lexical store). An empty token set yields a zero
+    /// fingerprint.
+    #[must_use]
+    pub fn from_text(text: &str) -> Self {
+        let mut columns = [0i32; 64];
+        let mut any = false;
+        for token in text.split_whitespace() {
+            let token = token.trim_matches(|ch: char| !ch.is_alphanumeric());
+            if token.is_empty() {
+                continue;
+            }
+            any = true;
+            let lowered = token.to_lowercase();
+            let hash = u64::from_le_bytes(token_hash_8(lowered.as_bytes()));
+            for (bit, column) in columns.iter_mut().enumerate() {
+                if (hash >> bit) & 1 == 1 {
+                    *column += 1;
+                } else {
+                    *column -= 1;
+                }
+            }
+        }
+        if !any {
+            return Self(0);
+        }
+        let mut fingerprint = 0u64;
+        for (bit, column) in columns.iter().enumerate() {
+            if *column > 0 {
+                fingerprint |= 1u64 << bit;
+            }
+        }
+        Self(fingerprint)
+    }
+
+    /// Return the raw 64-bit fingerprint.
+    #[must_use]
+    pub fn bits(&self) -> u64 {
+        self.0
+    }
+
+    /// Hamming distance between two fingerprints. Smaller means more similar;
+    /// `0` means the token multisets produced identical fingerprints.
+    #[must_use]
+    pub fn hamming_distance(&self, other: &Self) -> u32 {
+        (self.0 ^ other.0).count_ones()
+    }
+
+    /// Whether `other` is within `max_distance` bits of `self`.
+    #[must_use]
+    pub fn is_near(&self, other: &Self, max_distance: u32) -> bool {
+        self.hamming_distance(other) <= max_distance
+    }
+}
+
+/// First 8 bytes of the BLAKE3 hash of `bytes`, used as a per-token hash for
+/// SimHash column accumulation.
+#[cfg(feature = "near-dedup")]
+fn token_hash_8(bytes: &[u8]) -> [u8; 8] {
+    let full = blake3::hash(bytes);
+    let mut out = [0u8; 8];
+    for (slot, byte) in out.iter_mut().zip(full.as_bytes().iter()) {
+        *slot = *byte;
+    }
+    out
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
 mod tests {
@@ -247,5 +348,81 @@ mod tests {
         set.extend_from_snapshot(&snap).unwrap();
         assert_eq!(set.len().unwrap(), 1);
         assert!(set.contains(&good).unwrap());
+    }
+
+    #[cfg(feature = "near-dedup")]
+    #[test]
+    fn simhash_identical_text_has_zero_distance() {
+        let a = SimHash::from_text("scheduled maintenance window tonight");
+        let b = SimHash::from_text("scheduled maintenance window tonight");
+        assert_eq!(a.hamming_distance(&b), 0);
+    }
+
+    #[cfg(feature = "near-dedup")]
+    #[test]
+    fn simhash_word_reorder_stays_close() {
+        let a = SimHash::from_text("the scheduled maintenance window is tonight");
+        let b = SimHash::from_text("the maintenance window is scheduled tonight");
+        // Pure reorder: identical token multiset -> identical fingerprint.
+        assert_eq!(a.hamming_distance(&b), 0);
+        assert!(a.is_near(&b, 4));
+    }
+
+    #[cfg(feature = "near-dedup")]
+    #[test]
+    fn simhash_normalizes_case_and_punctuation() {
+        let a = SimHash::from_text("PowerShell, scheduled-task!");
+        let b = SimHash::from_text("powershell scheduled-task");
+        assert!(a.is_near(&b, 4));
+    }
+
+    #[cfg(feature = "near-dedup")]
+    #[test]
+    fn simhash_distinct_topics_are_far_apart() {
+        let a = SimHash::from_text("scheduled maintenance window tonight");
+        let b = SimHash::from_text("quarterly revenue forecast spreadsheet");
+        assert!(a.hamming_distance(&b) > 8);
+    }
+
+    #[cfg(feature = "near-dedup")]
+    #[test]
+    fn simhash_empty_text_is_zero() {
+        assert_eq!(SimHash::from_text("   ").bits(), 0);
+    }
+
+    #[test]
+    fn hex_round_trips_for_many_keys() {
+        for i in 0..512u32 {
+            let key = compute_key("kind", "conv", "role", None, &i.to_string());
+            let encoded = hex_encode(&key);
+            assert_eq!(encoded.len(), 64);
+            let decoded = hex_decode(&encoded).unwrap();
+            assert_eq!(decoded, key);
+        }
+    }
+
+    #[test]
+    fn hex_decode_rejects_malformed_inputs() {
+        // Wrong length.
+        assert!(hex_decode("").is_none());
+        assert!(hex_decode("ab").is_none());
+        assert!(hex_decode(&"a".repeat(63)).is_none());
+        assert!(hex_decode(&"a".repeat(65)).is_none());
+        // Correct length, non-hex characters.
+        assert!(hex_decode(&"g".repeat(64)).is_none());
+        assert!(hex_decode(&"z".repeat(64)).is_none());
+        // Correct length, embedded non-hex char.
+        let mut bad = "a".repeat(63);
+        bad.push('!');
+        assert!(hex_decode(&bad).is_none());
+    }
+
+    #[test]
+    fn hex_decode_accepts_mixed_case() {
+        let key = compute_key("k", "c", "r", None, "payload");
+        let lower = hex_encode(&key);
+        let upper = lower.to_uppercase();
+        assert_eq!(hex_decode(&lower), hex_decode(&upper));
+        assert_eq!(hex_decode(&upper), Some(key));
     }
 }

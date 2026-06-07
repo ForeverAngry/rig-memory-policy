@@ -55,7 +55,7 @@ impl FrameMetadata {
     /// dictionary.
     pub fn try_from_map(
         map: &std::collections::BTreeMap<String, String>,
-    ) -> Result<Self, serde_json::Error> {
+    ) -> Result<Self, crate::error::PolicyError> {
         let mut obj = serde_json::Map::new();
         #[allow(clippy::collapsible_if)]
         for (k, v) in map {
@@ -68,6 +68,7 @@ impl FrameMetadata {
             obj.insert(k.clone(), serde_json::Value::String(v.clone()));
         }
         serde_json::from_value(serde_json::Value::Object(obj))
+            .map_err(|e| crate::error::PolicyError::InvalidMetadata(e.to_string()))
     }
 
     /// Convert the metadata envelope into a string-to-string dictionary.

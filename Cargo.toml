@@ -11,6 +11,10 @@ authors = ["ForeverAngry"]
 keywords = ["rig", "memory", "ai", "agent", "dedup"]
 categories = ["text-processing"]
 
+[features]
+conformance = []
+near-dedup = []
+
 [dependencies]
 blake3 = { version = "1", default-features = false }
 serde = { version = "1.0.219", features = ["derive"] }

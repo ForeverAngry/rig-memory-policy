@@ -166,4 +166,29 @@ mod tests {
         assert!(!scope_matches(None, Some("tenant-a")));
         assert!(scope_matches(Some("tenant-a"), Some("/tenant-a/")));
     }
+
+    #[test]
+    fn normalize_is_idempotent_over_varied_inputs() {
+        let inputs = [
+            "",
+            "/",
+            "//",
+            " / ",
+            "tenant-a",
+            "/tenant-a/",
+            " /tenant-a//project-1/ ",
+            "a/b/c/d/e",
+            "  spaced  /  segments  ",
+            "trailing/",
+            "/leading",
+            "lots////of///slashes",
+        ];
+        for input in inputs {
+            let once = normalize_scope(input);
+            let twice = normalize_scope(&once);
+            assert_eq!(once, twice, "normalize not idempotent for {input:?}");
+            // Re-wrapping a normalized scope must round-trip.
+            assert_eq!(Scope::new(&once).as_str(), once);
+        }
+    }
 }

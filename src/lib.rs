@@ -15,6 +15,10 @@
 //!   backend isolation and provenance projection.
 //! - [`retention`] — deterministic keep/drop/defer policy evaluation over
 //!   backend-provided frame metadata and optional timestamps/sequence numbers.
+//! - [`reconcile`] — neutral consolidation decisions (add/update/delete/noop)
+//!   for deduplicating incoming memory against existing entries.
+//! - [`fusion`] — Reciprocal Rank Fusion for merging ranked result lists from
+//!   hybrid (dense + lexical + graph) retrievers.
 //! - [`store`] — the minimal [`TextWriter`] + [`Committable`] capability
 //!   traits backends impl so hooks and compactors can be generic over the
 //!   storage engine.
@@ -32,15 +36,24 @@
 
 pub mod dedup;
 pub mod error;
+pub mod fusion;
 pub mod inmem;
 pub mod metadata;
+pub mod reconcile;
 pub mod retention;
 pub mod scope;
 pub mod store;
 
+#[cfg(feature = "conformance")]
+pub mod conformance;
+
 pub use error::PolicyError;
+pub use fusion::{RRF_DEFAULT_K, reciprocal_rank_fusion};
 pub use inmem::{Episode, InMemoryHit, InMemoryStore};
 pub use metadata::{FrameKind, FrameMetadata};
-pub use retention::{RetentionCandidate, RetentionDecision, RetentionPolicy, RetentionRule};
+pub use reconcile::{DuplicateResolver, ExactHashResolver, ReconcileOp};
+pub use retention::{
+    RetentionCandidate, RetentionDecision, RetentionPolicy, RetentionReport, RetentionRule,
+};
 pub use scope::{Scope, normalize_scope, scope_matches, scope_path};
-pub use store::{Committable, TextWriter};
+pub use store::{Committable, TextDeleter, TextWriter};

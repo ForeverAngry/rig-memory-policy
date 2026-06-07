@@ -112,6 +112,20 @@ pub trait Committable {
     fn commit(&self) -> impl core::future::Future<Output = Result<(), Self::Error>>;
 }
 
+/// A backend that supports explicit deletion of previously written text.
+pub trait TextDeleter {
+    /// Backend-specific identifier used to target a deletion.
+    type Id;
+    /// Error type for failed deletions.
+    type Error: core::error::Error + Send + Sync + 'static;
+
+    /// Delete a previously written text payload by its backend-assigned identifier.
+    fn delete_text(
+        &self,
+        id: Self::Id,
+    ) -> impl core::future::Future<Output = Result<(), Self::Error>>;
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
 mod tests {
