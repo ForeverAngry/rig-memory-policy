@@ -8,6 +8,13 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.2.3...v0.3.0) - 2026-06-07
+
+### Added
+
+- Add integration tests for memory pipeline and retention policy
+- Add near-duplicate detection with SimHash and reconciliation logic
+
 ## [0.2.3](https://github.com/ForeverAngry/rig-memory-policy/compare/v0.2.2...v0.2.3) - 2026-06-01
 
 ### Tests
